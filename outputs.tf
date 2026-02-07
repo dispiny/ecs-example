@@ -13,7 +13,7 @@ output "services" {
   value = {
     for key, service in module.ecs_service : key => {
       name = service.name
-      arn  = service.arn
+      id   = service.id
     }
   }
 }
