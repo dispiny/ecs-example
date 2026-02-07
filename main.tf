@@ -110,46 +110,32 @@ resource "aws_ecs_task_definition" "app" {
   tags = local.tags
 }
 
-# ECS Service Module - For Each
-module "ecs_service" {
+# ECS Service - For Each
+resource "aws_ecs_service" "app" {
   for_each = local.ecs_services
 
-  source  = "terraform-aws-modules/ecs/aws//modules/service"
-  version = "~> 5.0"
+  name            = each.value.service_name
+  cluster         = module.ecs.cluster_id
+  task_definition = aws_ecs_task_definition.app[each.key].arn
+  desired_count   = each.value.desired_count
+  launch_type     = "FARGATE"
 
-  name        = each.value.service_name
-  cluster_arn = module.ecs.cluster_arn
-
-  # Task Definition
-  task_definition_arn = aws_ecs_task_definition.app[each.key].arn
-
-  # Service properties
-  desired_count                      = each.value.desired_count
-  deployment_minimum_healthy_percent = 100
-  deployment_maximum_percent         = 200
-
-  # Network configuration
-  network_mode        = "awsvpc"
-  subnet_ids          = module.vpc.private_subnets
-  security_group_ids  = [aws_security_group.ecs_service[each.key].id]
-
-  # Load balancer configuration
-  load_balancer = {
-    service = {
-      target_group_arn = aws_lb_target_group.app[each.key].arn
-      container_name   = each.value.container_name
-      container_port   = each.value.container_port
-    }
+  network_configuration {
+    subnets          = module.vpc.private_subnets
+    security_groups  = [aws_security_group.ecs_service[each.key].id]
+    assign_public_ip = false
   }
 
-  # Capacity provider
-  capacity_provider_strategy = {
-    FARGATE_SPOT = {
-      capacity_provider = "FARGATE_SPOT"
-      weight            = 100
-      base              = 1
-    }
+  load_balancer {
+    target_group_arn = aws_lb_target_group.app[each.key].arn
+    container_name   = each.value.container_name
+    container_port   = each.value.container_port
   }
+
+  depends_on = [
+    aws_lb_listener.app,
+    aws_iam_role_policy_attachment.ecs_task_execution_role_policy
+  ]
 
   tags = local.tags
 }

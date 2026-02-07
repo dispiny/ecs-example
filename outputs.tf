@@ -11,7 +11,7 @@ output "cluster_arn" {
 output "services" {
   description = "ECS services information"
   value = {
-    for key, service in module.ecs_service : key => {
+    for key, service in aws_ecs_service.app : key => {
       name = service.name
       id   = service.id
     }
