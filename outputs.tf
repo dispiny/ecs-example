@@ -1,11 +1,11 @@
 output "cluster_name" {
   description = "ECS cluster name"
-  value       = module.ecs.name
+  value       = module.ecs.cluster_name
 }
 
 output "cluster_arn" {
   description = "ECS cluster ARN"
-  value       = module.ecs.arn
+  value       = module.ecs.cluster_arn
 }
 
 output "services" {

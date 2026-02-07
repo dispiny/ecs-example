@@ -118,7 +118,7 @@ module "ecs_service" {
   version = "~> 5.0"
 
   name        = each.value.service_name
-  cluster_arn = module.ecs.arn
+  cluster_arn = module.ecs.cluster_arn
 
   # Task Definition
   task_definition_arn = aws_ecs_task_definition.app[each.key].arn
@@ -129,9 +129,9 @@ module "ecs_service" {
   deployment_maximum_percent         = 200
 
   # Network configuration
-  network_mode    = "awsvpc"
-  subnet_ids      = module.vpc.private_subnets
-  security_groups = [aws_security_group.ecs_service[each.key].id]
+  network_mode        = "awsvpc"
+  subnet_ids          = module.vpc.private_subnets
+  security_group_ids  = [aws_security_group.ecs_service[each.key].id]
 
   # Load balancer configuration
   load_balancer = {
