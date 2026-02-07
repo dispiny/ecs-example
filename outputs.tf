@@ -19,11 +19,11 @@ output "services" {
 }
 
 output "task_definitions" {
-  description = "ECS task definitions ARNs"
+  description = "ECS task definitions information"
   value = {
-    for key, task in aws_ecs_task_definition.app : key => {
-      arn  = task.arn
-      name = task.family
+    for key, service in module.ecs_service : key => {
+      arn    = service.task_definition_arn
+      family = split(":", service.task_definition_arn)[5]
     }
   }
 }
