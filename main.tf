@@ -78,7 +78,7 @@ module "ecs_service" {
 
   # Container definitions
   container_definitions = {
-    service = {
+    (each.value.container_name) = {
       name      = each.value.container_name
       image     = each.value.container_image
       cpu       = tonumber(each.value.task_cpu)
