@@ -66,19 +66,20 @@ module "ecs" {
   tags = local.tags
 }
 
-# ECS Service Module - For Each
-module "ecs_service" {
+# ECS Task Definition - For Each
+resource "aws_ecs_task_definition" "app" {
   for_each = local.ecs_services
 
-  source  = "terraform-aws-modules/ecs/aws//modules/service"
-  version = "~> 5.0"
+  family                   = each.value.service_name
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = each.value.task_cpu
+  memory                   = each.value.task_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
 
-  name        = each.value.service_name
-  cluster_arn = module.ecs.cluster_arn
-
-  # Container definitions
-  container_definitions = {
-    (each.value.container_name) = {
+  container_definitions = jsonencode([
+    {
       name      = each.value.container_name
       image     = each.value.container_image
       cpu       = tonumber(each.value.task_cpu)
@@ -104,11 +105,23 @@ module "ecs_service" {
         }
       }
     }
-  }
+  ])
 
-  # Task definition properties
-  cpu    = each.value.task_cpu
-  memory = each.value.task_memory
+  tags = local.tags
+}
+
+# ECS Service Module - For Each
+module "ecs_service" {
+  for_each = local.ecs_services
+
+  source  = "terraform-aws-modules/ecs/aws//modules/service"
+  version = "~> 5.0"
+
+  name        = each.value.service_name
+  cluster_arn = module.ecs.cluster_arn
+
+  # Task Definition
+  task_definition_arn = aws_ecs_task_definition.app[each.key].arn
 
   # Service properties
   desired_count                      = each.value.desired_count
