@@ -39,7 +39,7 @@ module "ecs" {
   source  = "terraform-aws-modules/ecs/aws"
   version = "~> 5.0"
 
-  name = var.cluster_name
+  cluster_name = var.cluster_name
 
   # Cluster capacity providers
   cluster_configuration = {
@@ -49,11 +49,19 @@ module "ecs" {
   }
 
   # Default capacity provider strategy
-  default_capacity_provider_use_defaults = false
-  default_capacity_provider_strategy = {
-    FARGATE      = 0
-    FARGATE_SPOT = 100
+  fargate_capacity_providers = {
+    FARGATE = {
+      default_capacity_provider_strategy = {
+        weight = 50
+      }
+    }
+    FARGATE_SPOT = {
+      default_capacity_provider_strategy = {
+        weight = 50
+      }
+    }
   }
+
 
   tags = local.tags
 }
