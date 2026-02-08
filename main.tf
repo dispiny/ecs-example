@@ -66,6 +66,39 @@ module "ecs" {
   tags = local.tags
 }
 
+# Service Discovery HTTP Namespace
+resource "aws_service_discovery_http_namespace" "example" {
+  name        = "${var.cluster_name}-service-discovery"
+  description = "Service discovery namespace for MSA services"
+
+  tags = local.tags
+}
+
+# Service Discovery Services
+resource "aws_service_discovery_service" "example" {
+  for_each = local.sc_services
+
+  name   = each.value.service_name
+  namespace_id = aws_service_discovery_http_namespace.example.id
+
+  dns_config {
+    namespace_id = aws_service_discovery_http_namespace.example.id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {
+    failure_threshold = 1
+  }
+
+  tags = local.tags
+}
+
 # ECS Task Definition - For Each
 resource "aws_ecs_task_definition" "app" {
   for_each = local.ecs_services
@@ -136,16 +169,25 @@ resource "aws_ecs_service" "app" {
     }
   }
 
+  service_connect_configuration {
+    enabled   = true
+    namespace = aws_service_discovery_http_namespace.example.arn
+    
+    service {
+      port_name      = each.value.container_name
+      discovery_name = each.value.service_name
+      
+      client_alias {
+        port = each.value.container_port
+      }
+    }
+  }
+
   depends_on = [
     aws_lb_listener.app,
-    aws_iam_role_policy_attachment.ecs_task_execution_role_policy
+    aws_iam_role_policy_attachment.ecs_task_execution_role_policy,
+    aws_service_discovery_http_namespace.example
   ]
-
-  lifecycle {
-    ignore_changes = [
-      service_connect_configuration
-    ]
-  }
 
   tags = local.tags
 }

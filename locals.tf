@@ -10,6 +10,7 @@ locals {
       task_memory     = "512"
       desired_count   = 2
       health_check_path = "/"
+      register_with_lb = true
       environment = [
         {
           name  = "ENVIRONMENT"
@@ -27,6 +28,7 @@ locals {
       task_memory     = "1024"
       desired_count   = 3
       health_check_path = "/health"
+      register_with_lb = true
       environment = [
         {
           name  = "ENVIRONMENT"
@@ -48,6 +50,7 @@ locals {
       task_memory     = "1024"
       desired_count   = 2
       health_check_path = "/api/health"
+      register_with_lb = true
       environment = [
         {
           name  = "ENVIRONMENT"
@@ -69,6 +72,7 @@ locals {
       task_memory     = "512"
       desired_count   = 1
       health_check_path = "/status"
+      register_with_lb = false
       environment = [
         {
           name  = "ENVIRONMENT"
@@ -77,6 +81,15 @@ locals {
       ]
     }
   }
+
+  # Load Balancer에 등록될 서비스만 필터링
+  lb_services = {
+    for key, service in local.ecs_services : key => service
+    if service.register_with_lb
+  }
+
+  # Service Connect에 포함될 서비스 (모든 서비스)
+  sc_services = local.ecs_services
 
   tags = merge(
     var.tags,
