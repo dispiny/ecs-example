@@ -66,6 +66,43 @@ module "ecs" {
   tags = local.tags
 }
 
+# Create Service Connect
+resource "aws_ecs_service_connect_configuration" "example" {
+  for_each = local.sc_services
+
+  cluster = module.ecs.cluster_id
+  service = aws_ecs_service.app[each.key].name
+
+  service_connect_configuration {
+    # The namespace to use for the service connect configuration
+    namespace = aws_service_discovery_http_namespace.example.id
+
+    # The service connect configuration for the service
+    service {
+      # The name of the service
+      name = each.value.service_name
+
+      # The discovery ID of the service
+      discovery_id = aws_service_discovery_service.example[each.key].id
+
+      # The port mapping for the service
+      port_mapping {
+        # The name of the port mapping
+        name = each.value.container_name
+
+        # The port number for the port mapping
+        port = each.value.container_port
+
+        # The protocol for the port mapping
+        protocol = "http"
+
+        # The discovery ID of the service
+        discovery_id = aws_service_discovery_service.example[each.key].id
+      }
+    }
+  }
+}
+
 # ECS Task Definition - For Each
 resource "aws_ecs_task_definition" "app" {
   for_each = local.ecs_services
