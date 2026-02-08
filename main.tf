@@ -91,6 +91,7 @@ resource "aws_ecs_task_definition" "app" {
           containerPort = each.value.container_port
           hostPort      = each.value.container_port
           protocol      = "tcp"
+          name          = each.value.container_name
         }
       ]
 
@@ -126,16 +127,25 @@ resource "aws_ecs_service" "app" {
     assign_public_ip = false
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.app[each.key].arn
-    container_name   = each.value.container_name
-    container_port   = each.value.container_port
+  dynamic "load_balancer" {
+    for_each = each.value.register_with_lb ? [1] : []
+    content {
+      target_group_arn = aws_lb_target_group.app[each.key].arn
+      container_name   = each.value.container_name
+      container_port   = each.value.container_port
+    }
   }
 
   depends_on = [
     aws_lb_listener.app,
     aws_iam_role_policy_attachment.ecs_task_execution_role_policy
   ]
+
+  lifecycle {
+    ignore_changes = [
+      service_connect_configuration
+    ]
+  }
 
   tags = local.tags
 }
@@ -151,9 +161,9 @@ resource "aws_lb" "app" {
   tags = local.tags
 }
 
-# Target Group - For Each
+# Target Group - For Each (LB 등록 서비스만)
 resource "aws_lb_target_group" "app" {
-  for_each = local.ecs_services
+  for_each = local.lb_services
 
   name        = "${each.value.service_name}-tg"
   port        = each.value.container_port
@@ -181,16 +191,16 @@ resource "aws_lb_listener" "app" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.app[keys(local.ecs_services)[0]].arn
+    target_group_arn = aws_lb_target_group.app[keys(local.lb_services)[0]].arn
   }
 }
 
-# ALB Listener Rules - For Each
+# ALB Listener Rules - For Each (LB 등록 서비스만)
 resource "aws_lb_listener_rule" "app" {
-  for_each = local.ecs_services
+  for_each = local.lb_services
 
   listener_arn = aws_lb_listener.app.arn
-  priority     = index(keys(local.ecs_services), each.key) + 1
+  priority     = index(keys(local.lb_services), each.key) + 1
 
   action {
     type             = "forward"
@@ -239,7 +249,7 @@ resource "aws_security_group" "ecs_service" {
     from_port       = each.value.container_port
     to_port         = each.value.container_port
     protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
